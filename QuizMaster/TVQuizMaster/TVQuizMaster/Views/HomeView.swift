@@ -20,53 +20,139 @@ struct HomeView: View {
     }
 
     var body: some View {
-        VStack(spacing: 40) {
-            headerView
-            
-            // Updated to handle direct play action
-            CategoriesScrollView(
-                categories: viewModel.categories,
-                selectedIndex: $selectedCategoryIndex,
-                isFocused: $isCategoryFocused,
-                onPlay: { category in
-                    viewModel.startGame(with: category)
-                }
+        ZStack {
+            // Refined gradient background
+            LinearGradient(
+                colors: [
+                    Color(red: 0.15, green: 0.2, blue: 0.35),   // Deep Navy
+                    Color(red: 0.2, green: 0.3, blue: 0.4),     // Medium Blue-Gray
+                    Color(red: 0.25, green: 0.35, blue: 0.45)   // Lighter Blue-Gray
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
+            .ignoresSafeArea()
+            .animation(.easeInOut(duration: 3).repeatForever(autoreverses: true), value: selectedCategoryIndex)
             
-            selectedCategoryView
+            VStack(spacing: 50) {
+                headerView
+                
+                // Updated to handle direct play action
+                CategoriesScrollView(
+                    categories: viewModel.categories,
+                    selectedIndex: $selectedCategoryIndex,
+                    isFocused: $isCategoryFocused,
+                    onPlay: { category in
+                        viewModel.startGame(with: category)
+                    }
+                )
+                
+                selectedCategoryView
+                
+                Spacer()
+            }
+            .padding()
         }
-        .padding()
     }
 
     private var headerView: some View {
-        Text("TVQuizMaster")
-            .font(.largeTitle)
-            .fontWeight(.bold)
-            .padding(.top, 20)
+        VStack(spacing: 15) {
+            // App icon with glow effect
+            Image(systemName: "brain.head.profile")
+                .font(.system(size: 80, weight: .light))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color(red: 0.4, green: 0.6, blue: 0.7), Color(red: 0.5, green: 0.7, blue: 0.8)], // Soft Teal
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .shadow(color: Color(red: 0.4, green: 0.6, blue: 0.7).opacity(0.4), radius: 15)
+                .scaleEffect(1.0 + sin(Date().timeIntervalSince1970 * 2) * 0.05)
+                .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: selectedCategoryIndex)
+            
+            Text("TVQuizMaster")
+                .font(.system(size: 48, weight: .heavy, design: .rounded))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.white, Color(red: 0.9, green: 0.9, blue: 0.85)], // Warm White
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .shadow(color: .black.opacity(0.3), radius: 5, x: 2, y: 2)
+            
+            Text("Challenge Your Mind")
+                .font(.title3)
+                .fontWeight(.medium)
+                .foregroundColor(.white.opacity(0.9))
+                .italic()
+        }
+        .padding(.top, 30)
     }
 
     @ViewBuilder
     private var selectedCategoryView: some View {
         if let selectedCategory = focusedCategory {
-            VStack {
+            VStack(spacing: 20) {
                 Text(selectedCategory.name)
-                    .font(.title2)
-                    .padding(.bottom, 8)
+                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.white, Color(red: 0.4, green: 0.6, blue: 0.7)], // Soft Teal accent
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .shadow(color: .black.opacity(0.3), radius: 3)
 
                 Button(action: {
                     viewModel.startGame(with: selectedCategory)
                 }) {
-                    Text("Play Now")
-                        .font(.headline)
-                        .padding()
-                        .frame(width: 200)
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
+                    HStack(spacing: 15) {
+                        Image(systemName: "play.circle.fill")
+                            .font(.title2)
+                        Text("Start Quiz")
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 40)
+                    .padding(.vertical, 16)
+                    .background(
+                        LinearGradient(
+                            colors: [Color(red: 0.4, green: 0.6, blue: 0.7), Color(red: 0.3, green: 0.5, blue: 0.6)], // Teal gradient
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(25)
+                    .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 25)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [Color(red: 0.8, green: 0.85, blue: 0.9).opacity(0.6), .clear], // Soft gray-white
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                ),
+                                lineWidth: 2
+                            )
+                    )
                 }
                 .buttonStyle(CardButtonStyle())
+                .scaleEffect(1.0)
+                .animation(.spring(response: 0.5, dampingFraction: 0.8), value: selectedCategory.id)
             }
-            .transition(.opacity.combined(with: .move(edge: .bottom)))
+            .padding(30)
+            .background(
+                RoundedRectangle(cornerRadius: 25)
+                    .fill(.ultraThinMaterial)
+                    .shadow(color: .black.opacity(0.2), radius: 15)
+            )
+            .transition(.asymmetric(
+                insertion: .scale.combined(with: .opacity),
+                removal: .scale.combined(with: .opacity)
+            ))
         }
     }
 }
@@ -185,54 +271,128 @@ struct CategoryCard: View {
     
     @FocusState private var isFocused: Bool
 
-    private var iconColor: Color {
-        isSelected ? .blue : .gray
+    private var categoryColors: [Color] {
+        switch category.name {
+        case "General Knowledge":
+            return [Color(red: 0.4, green: 0.6, blue: 0.7), Color(red: 0.5, green: 0.7, blue: 0.8)] // Soft Teal
+        case "Science":
+            return [Color(red: 0.6, green: 0.65, blue: 0.7), Color(red: 0.7, green: 0.75, blue: 0.8)] // Warm Gray
+        case "History":
+            return [Color(red: 0.25, green: 0.35, blue: 0.5), Color(red: 0.35, green: 0.45, blue: 0.6)] // Deep Navy
+        case "Entertainment":
+            return [Color(red: 0.45, green: 0.55, blue: 0.65), Color(red: 0.55, green: 0.65, blue: 0.75)] // Medium Blue-Gray
+        default:
+            return [Color(red: 0.4, green: 0.6, blue: 0.7), Color(red: 0.5, green: 0.7, blue: 0.8)] // Default Teal
+        }
     }
-
+    
     private var iconBackground: some View {
         Circle()
-            .fill(isSelected ? Color.blue.opacity(0.2) : Color.gray.opacity(0.1))
+            .fill(
+                LinearGradient(
+                    colors: isSelected ? categoryColors : [.gray.opacity(0.3), .gray.opacity(0.1)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .shadow(color: isSelected ? categoryColors[0].opacity(0.3) : .clear, radius: 12)
     }
 
     private var cardBackground: some View {
-        RoundedRectangle(cornerRadius: 20)
-            .fill(isSelected ? Color.blue.opacity(0.05) : Color.clear)
+        RoundedRectangle(cornerRadius: 25)
+            .fill(.ultraThinMaterial)
             .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(isSelected ? Color.blue : Color.clear, lineWidth: isFocused ? 4 : 2)
+                RoundedRectangle(cornerRadius: 25)
+                    .stroke(
+                        LinearGradient(
+                            colors: isSelected ? categoryColors + [.white.opacity(0.6)] : [.clear],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: isFocused ? 6 : (isSelected ? 4 : 0)
+                    )
             )
-            .shadow(color: isSelected ? .blue.opacity(0.5) : .clear, radius: 10, x: 0, y: 5)
+            .shadow(
+                color: isSelected ? categoryColors[0].opacity(0.2) : Color(red: 0.1, green: 0.1, blue: 0.15).opacity(0.1),
+                radius: isSelected ? 15 : 5,
+                x: 0,
+                y: isSelected ? 8 : 2
+            )
     }
 
     var body: some View {
-        // Build icon and texts as views (no explicit type annotation required)
+        // Build icon and texts as views with enhanced styling
         let icon = Image(systemName: category.iconName)
-            .font(.system(size: 60))
-            .foregroundColor(iconColor)
-            .padding()
+            .font(.system(size: 70, weight: .medium))
+            .foregroundStyle(
+                LinearGradient(
+                    colors: isSelected ? [.white, .white.opacity(0.8)] : [.gray, .gray.opacity(0.6)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .padding(25)
             .background(iconBackground)
-            .scaleEffect(isSelected ? 1.2 : 1.0)
+            .scaleEffect(isSelected ? 1.3 : 1.0)
 
         let name = Text(category.name)
-            .font(.headline)
-            .padding(.top, 8)
-            .foregroundColor(isSelected ? .primary : .secondary)
+            .font(.system(size: 22, weight: .bold, design: .rounded))
+            .padding(.top, 15)
+            .foregroundStyle(
+                LinearGradient(
+                    colors: isSelected ? [.white, categoryColors[0].opacity(0.8)] : [.secondary, .secondary.opacity(0.6)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .shadow(color: isSelected ? .black.opacity(0.3) : .clear, radius: 2)
 
         let questionCount = Text("\(category.questionCount) questions")
-            .font(.subheadline)
-            .foregroundColor(isSelected ? .blue : .gray)
+            .font(.system(size: 16, weight: .semibold, design: .rounded))
+            .foregroundColor(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: isSelected ? 
+                                [Color.black.opacity(0.6), Color.black.opacity(0.4)] : 
+                                [Color.black.opacity(0.4), Color.black.opacity(0.2)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay(
+                        Capsule()
+                            .stroke(
+                                isSelected ? 
+                                    LinearGradient(colors: [.white.opacity(0.3), .white.opacity(0.1)], startPoint: .top, endPoint: .bottom) :
+                                    LinearGradient(colors: [.white.opacity(0.2), .clear], startPoint: .top, endPoint: .bottom),
+                                lineWidth: 1
+                            )
+                    )
+            )
+            .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
 
-        VStack {
+        VStack(spacing: 20) {
             icon
-            name
-            questionCount
+            
+            VStack(spacing: 8) {
+                name
+                questionCount
+            }
         }
-        .padding()
-        .frame(width: 300, height: 300)
+        .padding(25)
+        .frame(width: 320, height: 320)
         .background(cardBackground)
-        .scaleEffect(isSelected ? 1.05 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isFocused)
+        .scaleEffect(isSelected ? 1.08 : 1.0)
+        .rotation3DEffect(
+            .degrees(isSelected ? 5 : 0),
+            axis: (x: 1, y: 0, z: 0)
+        )
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isSelected)
+        .animation(.spring(response: 0.2, dampingFraction: 0.9), value: isFocused)
         .focusable()
         .focused($isFocused)
         .onChange(of: isFocused) { oldValue, newValue in
@@ -251,9 +411,9 @@ struct CategoryCard: View {
 struct CardButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .opacity(configuration.isPressed ? 0.9 : 1.0)
-            .animation(.easeInOut, value: configuration.isPressed)
+            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
+            .brightness(configuration.isPressed ? -0.1 : 0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
