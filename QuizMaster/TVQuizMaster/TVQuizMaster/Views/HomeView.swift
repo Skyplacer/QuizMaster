@@ -22,11 +22,17 @@ struct HomeView: View {
     var body: some View {
         VStack(spacing: 40) {
             headerView
+            
+            // Updated to handle direct play action
             CategoriesScrollView(
                 categories: viewModel.categories,
                 selectedIndex: $selectedCategoryIndex,
-                isFocused: $isCategoryFocused
+                isFocused: $isCategoryFocused,
+                onPlay: { category in
+                    viewModel.startGame(with: category)
+                }
             )
+            
             selectedCategoryView
         }
         .padding()
@@ -69,6 +75,9 @@ struct CategoriesScrollView: View {
     let categories: [Category]
     @Binding var selectedIndex: Int
     @Binding var isFocused: Bool
+    // Add closure to handle game start
+    let onPlay: (Category) -> Void
+    
     @State private var scrollToId: UUID?
     @State private var previousSelectedIndex: Int? = nil
     @Namespace private var focusNamespace
@@ -81,8 +90,13 @@ struct CategoriesScrollView: View {
                         CategoryCard(
                             category: category,
                             isSelected: selectedIndex == index,
-                            action: {
+                            onFocus: {
+                                // Update index when focused (Navigation)
                                 selectedIndex = index
+                            },
+                            onPlay: {
+                                // Start game when clicked (Action)
+                                onPlay(category)
                             }
                         )
                         .id(category.id)
@@ -165,7 +179,10 @@ struct CategoriesScrollView: View {
 struct CategoryCard: View {
     let category: Category
     let isSelected: Bool
-    let action: () -> Void
+    // Separeted actions for cleaner logic
+    let onFocus: () -> Void
+    let onPlay: () -> Void
+    
     @FocusState private var isFocused: Bool
 
     private var iconColor: Color {
@@ -220,10 +237,14 @@ struct CategoryCard: View {
         .focused($isFocused)
         .onChange(of: isFocused) { oldValue, newValue in
             if newValue {
-                action()
+                // Only update the selection index when focused
+                onFocus()
             }
         }
-        .onTapGesture(perform: action)
+        // Use onTapGesture to trigger the actual game play
+        .onTapGesture {
+            onPlay()
+        }
     }
 }
 
@@ -242,4 +263,3 @@ struct HomeView_Previews: PreviewProvider {
             .environmentObject(QuizViewModel())
     }
 }
-
