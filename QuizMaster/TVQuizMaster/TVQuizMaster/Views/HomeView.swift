@@ -25,10 +25,7 @@ struct HomeView: View {
             CategoriesScrollView(
                 categories: viewModel.categories,
                 selectedIndex: $selectedCategoryIndex,
-                isFocused: $isCategoryFocused,
-                onSelect: { category in
-                    viewModel.startGame(with: category)
-                }
+                isFocused: $isCategoryFocused
             )
             selectedCategoryView
         }
@@ -72,7 +69,6 @@ struct CategoriesScrollView: View {
     let categories: [Category]
     @Binding var selectedIndex: Int
     @Binding var isFocused: Bool
-    let onSelect: (Category) -> Void
     @State private var scrollToId: UUID?
     @State private var previousSelectedIndex: Int? = nil
     @Namespace private var focusNamespace
@@ -84,13 +80,9 @@ struct CategoriesScrollView: View {
                     ForEach(Array(categories.enumerated()), id: \.element.id) { index, category in
                         CategoryCard(
                             category: category,
-                            isFocused: Binding(
-                                get: { isFocused && selectedIndex == index },
-                                set: { _ in /* intentionally ignored: parent manages focus */ }
-                            ),
+                            isSelected: selectedIndex == index,
                             action: {
                                 selectedIndex = index
-                                onSelect(category)
                             }
                         )
                         .id(category.id)
@@ -108,11 +100,6 @@ struct CategoriesScrollView: View {
                 
                 withAnimation(.spring()) {
                     proxy.scrollTo(categories[newValue].id, anchor: .center)
-                }
-                
-                // Only trigger onSelect if the index actually changed
-                if newValue != oldValue {
-                    onSelect(categories[newValue])
                 }
                 
                 previousSelectedIndex = newValue
@@ -160,8 +147,6 @@ struct CategoriesScrollView: View {
     private func handleMoveSelection(_ notification: Notification) {
         guard isFocused, let direction = notification.object as? UIFocusHeading else { return }
         
-        let previousIndex = selectedIndex
-        
         switch direction {
         case .left:
             if selectedIndex > 0 {
@@ -174,40 +159,32 @@ struct CategoriesScrollView: View {
         default:
             return
         }
-        
-        // Only trigger selection if the index actually changed
-        if selectedIndex != previousIndex {
-            // Update the view after a short delay to ensure smooth animation
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                onSelect(categories[selectedIndex])
-            }
-        }
     }
 }
 
 struct CategoryCard: View {
     let category: Category
-    @Binding var isFocused: Bool
+    let isSelected: Bool
     let action: () -> Void
-    @FocusState private var isFocusedState: Bool
+    @FocusState private var isFocused: Bool
 
     private var iconColor: Color {
-        isFocused ? .blue : .gray
+        isSelected ? .blue : .gray
     }
 
     private var iconBackground: some View {
         Circle()
-            .fill(isFocused ? Color.blue.opacity(0.2) : Color.gray.opacity(0.1))
+            .fill(isSelected ? Color.blue.opacity(0.2) : Color.gray.opacity(0.1))
     }
 
     private var cardBackground: some View {
         RoundedRectangle(cornerRadius: 20)
-            .fill(isFocused ? Color.blue.opacity(0.05) : Color.clear)
+            .fill(isSelected ? Color.blue.opacity(0.05) : Color.clear)
             .overlay(
                 RoundedRectangle(cornerRadius: 20)
-                    .stroke(isFocused ? Color.blue : Color.clear, lineWidth: 2)
+                    .stroke(isSelected ? Color.blue : Color.clear, lineWidth: isFocused ? 4 : 2)
             )
-            .shadow(color: isFocused ? .blue.opacity(0.5) : .clear, radius: 10, x: 0, y: 5)
+            .shadow(color: isSelected ? .blue.opacity(0.5) : .clear, radius: 10, x: 0, y: 5)
     }
 
     var body: some View {
@@ -217,16 +194,16 @@ struct CategoryCard: View {
             .foregroundColor(iconColor)
             .padding()
             .background(iconBackground)
-            .scaleEffect(isFocused ? 1.2 : 1.0)
+            .scaleEffect(isSelected ? 1.2 : 1.0)
 
         let name = Text(category.name)
             .font(.headline)
             .padding(.top, 8)
-            .foregroundColor(isFocused ? .primary : .secondary)
+            .foregroundColor(isSelected ? .primary : .secondary)
 
         let questionCount = Text("\(category.questionCount) questions")
             .font(.subheadline)
-            .foregroundColor(isFocused ? .blue : .gray)
+            .foregroundColor(isSelected ? .blue : .gray)
 
         VStack {
             icon
@@ -236,16 +213,14 @@ struct CategoryCard: View {
         .padding()
         .frame(width: 300, height: 300)
         .background(cardBackground)
-        .scaleEffect(isFocused ? 1.05 : 1.0)
+        .scaleEffect(isSelected ? 1.05 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isFocused)
         .focusable()
-        .focused($isFocusedState)
-        .onChange(of: isFocusedState) { oldValue, newValue in
+        .focused($isFocused)
+        .onChange(of: isFocused) { oldValue, newValue in
             if newValue {
-                isFocused = true
                 action()
-            } else {
-                isFocused = false
             }
         }
         .onTapGesture(perform: action)
